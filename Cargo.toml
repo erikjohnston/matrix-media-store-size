@@ -1,0 +1,12 @@
+[package]
+authors = ["Erik Johnston <erikj@matrix.org>"]
+name = "rust-media-store-dedupe"
+version = "0.1.0"
+
+[dependencies]
+base64 = "0.4.0"
+blake2-rfc = "0.2.17"
+humansize = "1.0.0"
+linear-map = "1.1.0"
+twox-hash = "1.0.1"
+walkdir = "1.0.7"
