@@ -190,8 +190,12 @@ fn main() {
     pb.finish();
 
     println!();
-    println!("Total wasted size: {}", total_wasted_size.file_size(options::CONVENTIONAL).unwrap());
-    println!("Total size: {}", total_size.file_size(options::CONVENTIONAL).unwrap());
+    println!(
+        "Total wasted size: {} out of {}. Percentage: {:.2}%",
+        total_wasted_size.file_size(options::CONVENTIONAL).unwrap(),
+        total_size.file_size(options::CONVENTIONAL).unwrap(),
+        (total_wasted_size * 100) as f64 / total_size as f64,
+    );
 
     let mut disk_db = rusqlite::Connection::open("media_store_sizes.db").expect("failed to open sqlite db");
     let backup = rusqlite::backup::Backup::new(&db, &mut disk_db).expect("failed to create backup");
