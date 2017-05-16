@@ -145,7 +145,7 @@ fn main() {
 
     for (file_size, paths) in paths_by_size {
         if paths.len() == 1 {
-            pb.inc(1);
+            pb.inc(file_size as u64);
             continue
         }
 
@@ -153,7 +153,7 @@ fn main() {
 
         for (hash, paths) in by_hash {
             if paths.len() == 1 {
-                pb.inc(1);
+                pb.inc(file_size as u64);
                 continue
             }
 
@@ -161,7 +161,7 @@ fn main() {
 
             for (_, paths) in by_contents {
                 if paths.len() == 1 {
-                    pb.inc(1);
+                    pb.inc(file_size as u64);
                     continue
                 }
 
@@ -180,7 +180,7 @@ fn main() {
 
                 total_wasted_size += wasted;
 
-                pb.inc(paths.len() as u64);
+                pb.inc((file_size * paths.len()) as u64);
             }
         }
     }
