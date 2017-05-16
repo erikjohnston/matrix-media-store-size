@@ -110,6 +110,7 @@ fn main() {
 
     let mut paths_by_size = BTreeMap::new();
     let mut total_files = 0;
+    let mut total_size = 0;
 
     println!("Walking fs...");
 
@@ -125,6 +126,7 @@ fn main() {
         paths_by_size.entry(file_size).or_insert_with(Vec::new).push(entry.path().to_owned());
 
         total_files += 1;
+        total_size += file_size;
 
         pb.inc(1);
         if total_files % 100 == 0 {
@@ -139,7 +141,7 @@ fn main() {
     println!("Handled {} files", total_files);
     println!();
 
-     let pb = indicatif::ProgressBar::new(total_files);
+     let pb = indicatif::ProgressBar::new(total_size as u64);
 
     let mut total_wasted_size = 0;
 
