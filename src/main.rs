@@ -98,12 +98,11 @@ fn main() {
         .arg(Arg::with_name("media_directory")
             .help("The location of the media store")
             .index(1)
+            .multiple(true)
             .required(true))
         .get_matches();
 
-    let path = matches.value_of("media_directory").unwrap();
-
-    println!("Creating DB...");
+    let paths_to_search = matches.values_of("media_directory").unwrap();
 
     let db = rusqlite::Connection::open_in_memory().expect("failed to open sqlite db");
     db.execute_batch(DB_TABLE_SCHEMA).expect("failed to create db schema");
@@ -112,42 +111,61 @@ fn main() {
     let mut total_files = 0;
     let mut total_size = 0;
 
-    println!("Walking fs...");
-
     let pb = indicatif::ProgressBar::new_spinner();
+    pb.set_style(
+        indicatif::ProgressStyle::default_spinner()
+        .template("{spinner} Collected metadata for {pos} files...")
+    );
 
-    for entry in WalkDir::new(path) {
-        let entry = entry.unwrap();
-        if !entry.file_type().is_file() {
-            continue
+    for path in paths_to_search {
+        for entry in WalkDir::new(path) {
+            let entry = entry.unwrap();
+            if !entry.file_type().is_file() {
+                continue
+            }
+
+            let file_size = entry.metadata().unwrap().len() as usize;
+            paths_by_size.entry(file_size).or_insert_with(Vec::new).push(entry.path().to_owned());
+
+            total_files += 1;
+            total_size += file_size;
+
+            pb.inc(1);
         }
-
-        let file_size = entry.metadata().unwrap().len() as usize;
-        paths_by_size.entry(file_size).or_insert_with(Vec::new).push(entry.path().to_owned());
-
-        total_files += 1;
-        total_size += file_size;
-
-        pb.inc(1);
-        if total_files % 100 == 0 {
-            // println!("Handled {} files", total_files);
-            // pb.set_message(&format!("Handled {} files", total_files));
-        }
-        pb.set_message(&format!("Handled {} files", total_files));
     }
 
     pb.finish_and_clear();
 
-    println!("Handled {} files", total_files);
-    println!();
+    println!("  Collected metadata for {} files", total_files);
 
-     let pb = indicatif::ProgressBar::new(total_size as u64);
+    let pb = indicatif::ProgressBar::new(total_files);
+    pb.set_style(
+        indicatif::ProgressStyle::default_bar()
+        .template("  Searching for possible duplicates  {bar:40} {pos:>8}/{len}")
+    );
+
+    let mut number_possible_duplicates = 0;
+    let mut possible_total_size = 0;
+    for (file_size, paths) in &paths_by_size {
+        if paths.len() > 1 {
+            number_possible_duplicates += paths.len();
+            possible_total_size += *file_size * paths.len();
+        }
+        pb.inc(1);
+    }
+
+    pb.finish();
+
+    let pb = indicatif::ProgressBar::new(possible_total_size as u64);
+    pb.set_style(
+        indicatif::ProgressStyle::default_bar()
+        .template("  Comparing hashes                   {bar:40} {bytes:>8}/{total_bytes}")
+    );
 
     let mut total_wasted_size = 0;
 
     for (file_size, paths) in paths_by_size {
         if paths.len() == 1 {
-            pb.inc(file_size as u64);
             continue
         }
 
@@ -167,18 +185,11 @@ fn main() {
                     continue
                 }
 
-                // print!("Duplicate {} paths (hash: {})\n", paths.len(), hash);
                 for path in &paths {
                     db.execute("INSERT INTO files (hash, path, size) VALUES (?, ?, ?)", &[&(hash as i64), &path.to_str().unwrap(), &(file_size as i64)]).expect("failed to write to db");
-                    // print!("  {}\n", path.display());
                 }
 
                 let wasted = file_size * (paths.len() - 1);
-                // print!(
-                //     " Size: {}. Wasting {}.\n",
-                //     file_size.file_size(options::CONVENTIONAL).unwrap(),
-                //     wasted.file_size(options::CONVENTIONAL).unwrap(),
-                // );
 
                 total_wasted_size += wasted;
 
