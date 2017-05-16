@@ -10,6 +10,7 @@ clap = "2.24.1"
 humansize = "1.0.0"
 indicatif = "0.5.0"
 linear-map = "1.1.0"
+rand = "0.3.15"
 twox-hash = "1.0.1"
 walkdir = "1.0.7"
 

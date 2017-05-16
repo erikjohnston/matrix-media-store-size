@@ -19,6 +19,7 @@
 extern crate clap;
 extern crate humansize;
 extern crate linear_map;
+extern crate rand;
 extern crate rusqlite;
 extern crate twox_hash;
 extern crate walkdir;
@@ -29,6 +30,7 @@ extern crate indicatif;
 use humansize::{FileSize, file_size_opts as options};
 use clap::{App, Arg};
 use linear_map::LinearMap;
+use rand::Rng;
 use std::io;
 use std::io::Read;
 use std::fs::File;
@@ -144,17 +146,22 @@ fn main() {
         .template("  Searching for possible duplicates  {bar:40} {pos:>8}/{len}")
     );
 
-    let mut number_possible_duplicates = 0;
     let mut possible_total_size = 0;
-    for (file_size, paths) in &paths_by_size {
+    let mut possible_duplicates = Vec::new();
+    for (file_size, paths) in paths_by_size.into_iter() {
         if paths.len() > 1 {
-            number_possible_duplicates += paths.len();
-            possible_total_size += *file_size * paths.len();
+            possible_total_size += file_size * paths.len();
+            possible_duplicates.push((file_size, paths))
         }
         pb.inc(1);
     }
 
     pb.finish();
+
+    // We shuffle the vector as otherwise we do the small files first, and
+    // that can skew the progress estimates massively.
+    let mut rng = rand::thread_rng();
+    rng.shuffle(possible_duplicates.as_mut_slice());
 
     let pb = indicatif::ProgressBar::new(possible_total_size as u64);
     pb.set_style(
@@ -164,7 +171,7 @@ fn main() {
 
     let mut total_wasted_size = 0;
 
-    for (file_size, paths) in paths_by_size {
+    for (file_size, paths) in possible_duplicates {
         if paths.len() == 1 {
             continue
         }
