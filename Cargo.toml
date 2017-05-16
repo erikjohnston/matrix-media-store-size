@@ -8,10 +8,16 @@ base64 = "0.4.0"
 blake2-rfc = "0.2.17"
 clap = "2.24.1"
 humansize = "1.0.0"
+indicatif = "0.5.0"
 linear-map = "1.1.0"
-rusqlite = { version = "0.11.0", features = ["backup"] }
 twox-hash = "1.0.1"
 walkdir = "1.0.7"
+
+[dependencies.rusqlite]
+features = ["backup"]
+version = "0.11.0"
+
+[profile]
 
 [profile.release]
 debug = true

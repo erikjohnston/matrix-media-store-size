@@ -22,6 +22,7 @@ extern crate linear_map;
 extern crate rusqlite;
 extern crate twox_hash;
 extern crate walkdir;
+extern crate indicatif;
 
 
 // use blake2_rfc::blake2b::Blake2b;
@@ -112,9 +113,11 @@ fn main() {
 
     println!("Walking fs...");
 
+    let pb = indicatif::ProgressBar::new_spinner();
+
     for entry in WalkDir::new(path) {
         let entry = entry.unwrap();
-        if entry.file_type().is_dir() {
+        if !entry.file_type().is_file() {
             continue
         }
 
@@ -122,18 +125,27 @@ fn main() {
         paths_by_size.entry(file_size).or_insert_with(Vec::new).push(entry.path().to_owned());
 
         total_files += 1;
-        if total_files % 10000 == 0 {
-            println!("Handled {} files", total_files);
+
+        pb.inc(1);
+        if total_files % 100 == 0 {
+            // println!("Handled {} files", total_files);
+            // pb.set_message(&format!("Handled {} files", total_files));
         }
+        pb.set_message(&format!("Handled {} files", total_files));
     }
+
+    pb.finish_and_clear();
 
     println!("Handled {} files", total_files);
     println!();
+
+     let pb = indicatif::ProgressBar::new(total_files);
 
     let mut total_wasted_size = 0;
 
     for (file_size, paths) in paths_by_size {
         if paths.len() == 1 {
+            pb.inc(1);
             continue
         }
 
@@ -141,6 +153,7 @@ fn main() {
 
         for (hash, paths) in by_hash {
             if paths.len() == 1 {
+                pb.inc(1);
                 continue
             }
 
@@ -148,6 +161,7 @@ fn main() {
 
             for (_, paths) in by_contents {
                 if paths.len() == 1 {
+                    pb.inc(1);
                     continue
                 }
 
@@ -158,16 +172,20 @@ fn main() {
                 }
 
                 let wasted = file_size * (paths.len() - 1);
-                print!(
-                    " Size: {}. Wasting {}.\n",
-                    file_size.file_size(options::CONVENTIONAL).unwrap(),
-                    wasted.file_size(options::CONVENTIONAL).unwrap(),
-                );
+                // print!(
+                //     " Size: {}. Wasting {}.\n",
+                //     file_size.file_size(options::CONVENTIONAL).unwrap(),
+                //     wasted.file_size(options::CONVENTIONAL).unwrap(),
+                // );
 
                 total_wasted_size += wasted;
+
+                pb.inc(paths.len() as u64);
             }
         }
     }
+
+    pb.finish();
 
     println!();
     println!("Total wasted size: {}", total_wasted_size.file_size(options::CONVENTIONAL).unwrap());
