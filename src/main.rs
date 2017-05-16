@@ -13,18 +13,22 @@
 //    limitations under the License.
 
 
-extern crate base64;
-extern crate blake2_rfc;
+// extern crate base64;
+// extern crate blake2_rfc;
+#[macro_use]
+extern crate clap;
 extern crate humansize;
 extern crate linear_map;
+extern crate rusqlite;
 extern crate twox_hash;
 extern crate walkdir;
 
 
 // use blake2_rfc::blake2b::Blake2b;
 use humansize::{FileSize, file_size_opts as options};
+use clap::{App, Arg};
 use linear_map::LinearMap;
-use std::{env, io};
+use std::io;
 use std::io::Read;
 use std::fs::File;
 use std::hash::Hasher;
@@ -77,12 +81,36 @@ fn partition_by<I, F, R>(paths: I, f: F) -> LinearMap<R, Vec<PathBuf>>
 }
 
 
+const DB_TABLE_SCHEMA: &'static str = r#"
+CREATE TABLE files (
+    hash BIGINT NOT NULL,
+    path TEXT NOT NULL,
+    size BIGINT NOT NULL
+);
+"#;
+
+
 fn main() {
-    let path = env::args().nth(1).expect("paramater");
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!("\n"))
+        .arg(Arg::with_name("media_directory")
+            .help("The location of the media store")
+            .index(1)
+            .required(true))
+        .get_matches();
+
+    let path = matches.value_of("media_directory").unwrap();
+
+    println!("Creating DB...");
+
+    let db = rusqlite::Connection::open_in_memory().expect("failed to open sqlite db");
+    db.execute_batch(DB_TABLE_SCHEMA).expect("failed to create db schema");
 
     let mut paths_by_size = BTreeMap::new();
-
     let mut total_files = 0;
+
+    println!("Walking fs...");
 
     for entry in WalkDir::new(path) {
         let entry = entry.unwrap();
@@ -123,9 +151,10 @@ fn main() {
                     continue
                 }
 
-                print!("Duplicate {} paths (hash: {})\n", paths.len(), hash);
+                // print!("Duplicate {} paths (hash: {})\n", paths.len(), hash);
                 for path in &paths {
-                    print!("  {}\n", path.display());
+                    db.execute("INSERT INTO files (hash, path, size) VALUES (?, ?, ?)", &[&(hash as i64), &path.to_str().unwrap(), &(file_size as i64)]).expect("failed to write to db");
+                    // print!("  {}\n", path.display());
                 }
 
                 let wasted = file_size * (paths.len() - 1);
@@ -142,4 +171,8 @@ fn main() {
 
     println!();
     println!("Total wasted size: {}", total_wasted_size.file_size(options::CONVENTIONAL).unwrap());
+
+    let mut disk_db = rusqlite::Connection::open("media_store_sizes.db").expect("failed to open sqlite db");
+    let backup = rusqlite::backup::Backup::new(&db, &mut disk_db).expect("failed to create backup");
+    backup.run_to_completion(5, std::time::Duration::from_millis(0), None).expect("failed to write to disk");
 }

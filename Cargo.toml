@@ -6,7 +6,12 @@ version = "0.1.0"
 [dependencies]
 base64 = "0.4.0"
 blake2-rfc = "0.2.17"
+clap = "2.24.1"
 humansize = "1.0.0"
 linear-map = "1.1.0"
+rusqlite = { version = "0.11.0", features = ["backup"] }
 twox-hash = "1.0.1"
 walkdir = "1.0.7"
+
+[profile.release]
+debug = true
