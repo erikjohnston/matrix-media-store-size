@@ -116,7 +116,7 @@ fn main() {
     let pb = indicatif::ProgressBar::new_spinner();
     pb.set_style(
         indicatif::ProgressStyle::default_spinner()
-        .template("{spinner} Collected metadata for {pos} files...")
+        .template("{spinner} Collected metadata for {pos} files [{elapsed}]")
     );
 
     for path in paths_to_search {
@@ -136,14 +136,15 @@ fn main() {
         }
     }
 
-    pb.finish_and_clear();
+    pb.finish();
+    pb.set_position(total_files);
 
-    println!("  Collected metadata for {} files", total_files);
+    // println!("  Collected metadata for {} files", total_files);
 
     let pb = indicatif::ProgressBar::new(total_files);
     pb.set_style(
         indicatif::ProgressStyle::default_bar()
-        .template("  Searching for possible duplicates  {bar:40} {pos:>8}/{len}")
+        .template("  Searching for possible duplicates  {bar:40} {pos:>9}/{len:9} [{elapsed}]")
     );
 
     let mut possible_total_size = 0;
@@ -166,7 +167,7 @@ fn main() {
     let pb = indicatif::ProgressBar::new(possible_total_size as u64);
     pb.set_style(
         indicatif::ProgressStyle::default_bar()
-        .template("  Comparing hashes                   {bar:40} {bytes:>8}/{total_bytes}")
+        .template("  Comparing hashes                   {bar:40} {bytes:>9}/{total_bytes:9} [{elapsed}]")
     );
 
     let mut total_wasted_size = 0;
