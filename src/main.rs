@@ -102,9 +102,16 @@ fn main() {
             .index(1)
             .multiple(true)
             .required(true))
+        .arg(Arg::with_name("output-db")
+            .short("o")
+            .long("output-db")
+            .help("Where to write SQLite database to")
+            .value_name("FILE")
+            .takes_value(true))
         .get_matches();
 
     let paths_to_search = matches.values_of("media_directory").unwrap();
+    let output_db_path = matches.value_of("output-db");
 
     let db = rusqlite::Connection::open_in_memory().expect("failed to open sqlite db");
     db.execute_batch(DB_TABLE_SCHEMA).expect("failed to create db schema");
@@ -216,7 +223,9 @@ fn main() {
         (total_wasted_size * 100) as f64 / total_size as f64,
     );
 
-    let mut disk_db = rusqlite::Connection::open("media_store_sizes.db").expect("failed to open sqlite db");
-    let backup = rusqlite::backup::Backup::new(&db, &mut disk_db).expect("failed to create backup");
-    backup.run_to_completion(5, std::time::Duration::from_millis(0), None).expect("failed to write to disk");
+    if let Some(path) = output_db_path {
+        let mut disk_db = rusqlite::Connection::open(path).expect("failed to open sqlite db");
+        let backup = rusqlite::backup::Backup::new(&db, &mut disk_db).expect("failed to create backup");
+        backup.run_to_completion(5, std::time::Duration::from_millis(0), None).expect("failed to write to disk");
+    }
 }
