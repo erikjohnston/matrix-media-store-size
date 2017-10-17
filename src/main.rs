@@ -156,7 +156,7 @@ fn main() {
 
     let mut possible_total_size = 0;
     let mut possible_duplicates = Vec::new();
-    for (file_size, paths) in paths_by_size.into_iter() {
+    for (file_size, paths) in paths_by_size {
         if paths.len() > 1 {
             possible_total_size += file_size * paths.len();
             possible_duplicates.push((file_size, paths))
